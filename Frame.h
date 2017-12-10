@@ -1,3 +1,4 @@
+#include <stdio.h>
 #pragma once
 
 typedef unsigned char byte;
@@ -10,11 +11,9 @@ public:
 	void clear();
 	bool isOutside(int x, int y) const;
 	void write(FILE * file) const;
-	
-
 private:
+	int w, h;
 	byte * pixels;
-	int w;
-	int h;
+	
 };
 

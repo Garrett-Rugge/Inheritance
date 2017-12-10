@@ -8,7 +8,9 @@
 
 extern Frame frame;
 
-void Image::load(const char * filename, int w, int h) {
+void Image::load(const char * filename, int w, int h, int x, int y) {
+	x = x;
+	y = y;
 	this->w = w;
 	this->h = h;
 	pixels = new byte[w * h * 3];
@@ -40,7 +42,7 @@ void Image::load(const char * filename, int w, int h) {
 #endif
 }
 
-void Image::draw(int x, int y){
+void Image::draw(){
 	for (int i = 0; i < w; ++i) {
 		for (int j = 0; j < h; ++j) {
 			byte r = pixels[j * w * 3 + i * 3 + 0];
@@ -49,5 +51,10 @@ void Image::draw(int x, int y){
 			frame.setPixel(x + i, y + j, r, g, b);
 		}
 	}
+}
+
+void Image::update(int l, int p){
+	x+=l;
+	y+=p;
 }
 

@@ -1,23 +1,4 @@
-/*! \mainpage gen_video.cpp
- *
- * This program generates a playable video file of simple animations 
- * using the mpeg4 encoding.  It does this by writing raw video frames 
- * into a running instance of ffmpeg. 
- *
- * This system uses the following coordinate system:
- * ~~~~
- *    (0, 0)               (w, 0)
- *      +--------------------+
- *      |                    |
- *      |                    |
- *      |                    |
- *      +--------------------+
- *    (0, h)               (w, h)
- * ~~~~
- *
- * [course website](https://github.com/csusbdt/202-2017-fall/wiki)
- *
- */
+
  
 #include <iostream>
 #include <sstream>
@@ -26,94 +7,16 @@
 #include <cassert>
 #include <cstring>
 #include "Image.h"
-#include "Frame.h"
-
-#define W 720
-#define H 480
+#include "Rectangle.h"
 
 
-unsigned char frame[H][W][3];
+
+Frame frame(720, 480);
 const double frames_per_second = 30; 
 const int duration_in_seconds = 3;
-const double pps = 80;
 
-typedef unsigned char byte;
-class Rectangle{
-	public:
-		Rectangle();
-		Rectangle(int x, int y, int w, int h, byte r, byte g, byte b);
-		void clamp(int * x, int * y);
-		void clear_frame() { memset(frame, 0, sizeof(frame)); }
-		void draw_rect();
-		void draw_frame(double t);
-		bool outside_frame(int * x, int * y);	
-	private:
-		int x, y, j, k, w, h;
-		byte r, g, b;
-};
 
 using namespace std;
-
-Rectangle::Rectangle(){
-	j = 0;
-	k = 0;
-	x = 0;
-	y = 0;
-	w = 0;
-	h = 0;
-	r = 0x00;
-	g = 0x00;
-	b = 0x00;
-}
-Rectangle::Rectangle(int x, int y, int w, int h, byte r, byte g, byte b){
-	j = x;
-	k = y;
-	w = w;
-	h = h;
-	r = r;
-	g = g;
-	b = b;
-}
-// Main drawing code.
-// Expand this function to add content to the video.
-void Rectangle::draw_frame(double t) {
-	clear_frame();
-	x = j + t * pps;
-	y = k + t * pps;
-	w = 100;
-	h = 100;
-	g = 0xff;
-	draw_rect();
-}
-
-// Constrain point to frame.
-void Rectangle::clamp(int * x, int * y) {
-	if (*x < 0) *x = 0; else if (*x >= W) *x = W - 1;
-	if (*y < 0) *y = 0; else if (*y >= H) *y = H - 1;
-}
-
-bool Rectangle::outside_frame(int * x, int * y) {
-	return *x < 0 or *x >= W or *y < 0 or *y >= H;
-}
-
-// Draw a solid rectangle at given location, with given width and height
-// and with given RGB color value.
-void Rectangle::draw_rect() {
-	if (outside_frame(&x, &y)) return;
-	int x0 = x;
-	int x1 = x + w;
-	int y0 = y;
-	int y1 = y + h;
-	clamp(&x0, &y0);
-	clamp(&x1, &y1);
-	for (int y = y0; y < y1; ++y) {
-		for (int x = x0; x < x1; ++x) {
-			frame[y][x][0] = r;
-			frame[y][x][1] = g;
-			frame[y][x][2] = b;
-		}
-	}
-}
 
 
 int main(int argc, char * argv[]) {
@@ -134,36 +37,42 @@ int main(int argc, char * argv[]) {
 		"output.mp4          ";
 
 	// Run the ffmpeg command and get pipe to write into its standard input stream.
-	Rectangle r(0, 0, 100, 100, 0x00, 0xff, 0x00);
+	Rectangle r(50, 50, 100, 100, 0x00, 0xff, 0x00);
+	Rectangle e(0, 0, 50, 50, 0xff, 0x00, 0x00);
+#ifdef _WIN32
+	FILE * pipe = _popen(cmd, "wb");
+#else
 	FILE * pipe = popen(cmd, "w");
+#endif
 	if (pipe == 0) {
 		cout << "error: " << strerror(errno) << endl;
 		return 1;
 	}
 	Image image;
-	image.load("ducky.bmp", 200, 200);
+	image.load("ducky.bmp", 100, 100, 100, 100);
 	Image kappa;
-	kappa.load("kappa.bmp", 200, 200);
-	int a = 0;
-	int b = 0;
-	int x = 100;
-	int y = 100;
+	kappa.load("kappa.bmp", 200, 200, 100, 100);
 	// Write video frames into the pipe.
 	int num_frames = duration_in_seconds * frames_per_second;
 	for (int i = 0; i < num_frames; ++i) {
-		double time_in_seconds = i / frames_per_second;
-		r.draw_frame(time_in_seconds);
-		image.draw(a,b);
-		kappa.draw(x,y);
-		fwrite(frame, 3, W * H, pipe);
-		a+=3;
-		x+=2;
-		y+=2;
+		r.draw();
+		e.draw();
+		image.draw();
+		kappa.draw();
+		frame.write(pipe);
+		kappa.update(3, 2);
+		image.update(1, 3);
+		r.update(1, 1);
+		e.update(5, 0);
+		frame.clear();
 	}
-
+	
 	fflush(pipe);
+#ifdef _WIN32
+	_pclose(pipe);
+#else
 	pclose(pipe);
-
+#endif
 	cout << "num_frames: " << num_frames << endl;
 	cout << "Done." << endl;
 
